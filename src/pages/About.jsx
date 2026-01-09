@@ -3,9 +3,9 @@ import { Target, Eye, Users, Zap } from 'lucide-react';
 
 const About = () => {
   const team = [
-    { name: "Club President", role: "Leadership", image: "https://via.placeholder.com/150" },
-    { name: "Lead Developer", role: "Technical Head", image: "https://via.placeholder.com/150" },
-    { name: "Event Coordinator", role: "Management", image: "https://via.placeholder.com/150" },
+    { name: "Club President", role: "Leadership", image: "https://i.pravatar.cc/150?img=2" },
+    { name: "Lead Developer", role: "Technical Head", image: "https://i.pravatar.cc/150?img=2" },
+    { name: "Event Coordinator", role: "Management", image: "https://i.pravatar.cc/150?img=2" },
   ];
 
   return (

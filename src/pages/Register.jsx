@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { motion } from "framer-motion";
 import { Send, CheckCircle } from "lucide-react";
+import toast from "react-hot-toast";
 
 const Register = () => {
   const [events, setEvents] = useState([]);
@@ -70,6 +71,16 @@ const Register = () => {
             required
             className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg"
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+
+          <input
+            type="tel"
+            placeholder="Phone Number"
+            required
+            className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white"
+            onChange={(e) =>
+              setFormData({ ...formData, phone: e.target.value })
+            }
           />
 
           <input
