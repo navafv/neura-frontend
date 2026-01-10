@@ -1,70 +1,87 @@
-import { motion } from 'framer-motion';
-import { Cpu, Globe, Shield, Code, ChevronRight } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { Terminal, Cpu, Globe, Shield, Code, ChevronRight, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Home = () => {
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
-  };
+  const { scrollYProgress } = useScroll();
+  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
 
   return (
-    <div className="bg-slate-900 text-white overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center px-6 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyan-900/20 via-slate-900 to-slate-900"></div>
-        
-        <div className="relative z-10 text-center max-w-4xl">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 1 }}>
-            <h1 className="text-6xl md:text-8xl font-black mb-6 tracking-tighter bg-linear-to-b from-white to-slate-500 bg-clip-text text-transparent">
-              NEURA <span className="text-cyan-400 font-outline-2">2026</span>
+    <div className="bg-slate-900 text-white selection:bg-cyan-500/30">
+      {/* Dynamic Hero */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        <motion.div style={{ y: backgroundY }} className="absolute inset-0 opacity-30">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 blur-[120px] rounded-full"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 blur-[120px] rounded-full"></div>
+        </motion.div>
+
+        <div className="relative z-10 text-center px-6">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-bold mb-8">
+              <Zap size={14} fill="currentColor" /> THE FUTURE IS NEURAL
+            </div>
+            <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-6 bg-gradient-to-b from-white via-white to-slate-500 bg-clip-text text-transparent">
+              NEURA<span className="text-cyan-400">.</span>
             </h1>
-            <p className="text-xl md:text-3xl text-slate-400 mb-10 font-light">
-              Where Intelligence Meets Innovation. The Ultimate IT Symposium.
+            <p className="text-xl md:text-2xl text-slate-400 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
+              Jamia Hamdard's premier IT collective. We don't just study tech; we build the future.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/fest" className="px-8 py-4 bg-cyan-500 text-slate-900 font-bold rounded-full flex items-center gap-2 hover:bg-white transition-all">
-                Explore Events <ChevronRight size={20} />
+            <div className="flex flex-col sm:flex-row justify-center gap-6">
+              <Link to="/register" className="px-10 py-5 bg-cyan-500 hover:bg-white text-slate-900 font-bold rounded-2xl transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 group">
+                Join the Revolution <ChevronRight className="group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link to="/about" className="px-8 py-4 border border-slate-700 rounded-full hover:bg-slate-800 transition-all">
-                Our Mission
+              <Link to="/fest" className="px-10 py-5 bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-2xl font-bold transition-all">
+                View Event Lineup
               </Link>
             </div>
           </motion.div>
         </div>
+        
+        <motion.div animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="absolute bottom-10 left-1/2 -translate-x-1/2 text-slate-500">
+          <div className="w-6 h-10 border-2 border-slate-700 rounded-full flex justify-center p-1">
+            <div className="w-1 h-2 bg-cyan-400 rounded-full"></div>
+          </div>
+        </motion.div>
       </section>
 
-      {/* Features with Scroll Animation */}
-      <section className="py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="text-4xl font-bold mb-16 text-center">
-            Our Core <span className="text-cyan-400">Pillars</span>
-          </motion.h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Feature icon={<Code />} title="Development" desc="Building scalable web and mobile applications using modern stacks." delay={0.1} />
-            <Feature icon={<Cpu />} title="Hardware" desc="Exploring the intersection of robotics and embedded systems." delay={0.2} />
-            <Feature icon={<Shield />} title="Cybersecurity" desc="Deep diving into network security and ethical hacking." delay={0.3} />
-            <Feature icon={<Globe />} title="Networking" desc="Building a global community of forward-thinking techies." delay={0.4} />
-          </div>
+      {/* Stats Section */}
+      <section className="py-20 border-y border-slate-800 bg-slate-900/50 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+          <Stat value="500+" label="Members" />
+          <Stat value="20+" label="Events/Year" />
+          <Stat value="150+" label="Projects Built" />
+          <Stat value="5k+" label="Lines of Code" />
+        </div>
+      </section>
+
+      {/* Feature Section */}
+      <section className="py-32 px-6 max-w-7xl mx-auto">
+        <div className="text-center mb-24">
+          <h2 className="text-4xl md:text-5xl font-black mb-4 text-white">Why <span className="text-cyan-400">Neura?</span></h2>
+          <p className="text-slate-400">Empowering the next generation of digital pioneers.</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-8">
+          <Card icon={<Terminal />} title="Code Labs" desc="Intensive peer-led coding sessions every weekend." />
+          <Card icon={<Globe />} title="Global Network" desc="Connect with alumni working at Google, Amazon, and Meta." />
+          <Card icon={<Cpu />} title="Hardware Forge" desc="Access to IoT kits and 3D printing for club projects." />
         </div>
       </section>
     </div>
   );
 };
 
-const Feature = ({ icon, title, desc, delay }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ delay, duration: 0.6 }}
-    whileHover={{ y: -10 }}
-    className="p-8 bg-slate-800/40 rounded-3xl border border-slate-800 hover:border-cyan-500/50 hover:bg-slate-800/60 transition-all cursor-default"
-  >
-    <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-cyan-400 mb-6">{icon}</div>
-    <h3 className="text-xl font-bold mb-3">{title}</h3>
-    <p className="text-slate-400 leading-relaxed text-sm">{desc}</p>
+const Stat = ({ value, label }) => (
+  <div className="space-y-1">
+    <div className="text-4xl font-black text-cyan-400">{value}</div>
+    <div className="text-slate-500 uppercase tracking-widest text-xs font-bold">{label}</div>
+  </div>
+);
+
+const Card = ({ icon, title, desc }) => (
+  <motion.div whileHover={{ y: -10 }} className="p-10 bg-slate-800/30 border border-slate-800 rounded-[2.5rem] hover:border-cyan-500/50 transition-all">
+    <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-cyan-400 mb-8">{icon}</div>
+    <h3 className="text-2xl font-bold mb-4">{title}</h3>
+    <p className="text-slate-400 leading-relaxed">{desc}</p>
   </motion.div>
 );
 

@@ -1,131 +1,106 @@
 import { useState, useEffect } from "react";
 import api from "../api/axios";
-import { motion } from "framer-motion";
-import { Send, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, CheckCircle, Info, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 
 const Register = () => {
   const [events, setEvents] = useState([]);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    college: "",
-    event: "",
-  });
-  const [submitted, setSubmitted] = useState(false);
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", college: "", event: "" });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // Fetch events from Django so students can pick one
-    api.get("events/").then((res) => setEvents(res.data));
+    api.get("events/").then((res) => setEvents(res.data.results || res.data));
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    api
-      .post("participants/", formData)
-      .then(() => {
-        toast.success("Registered Successfully! See you at Neura!");
-        setSubmitted(true);
-      })
-      .catch(() => toast.error("Check your details and try again."));
+    setLoading(true);
+    try {
+      await api.post("participants/", formData);
+      setSuccess(true);
+      toast.success("Welcome to the squad!");
+    } catch (err) {
+      // Errors handled by axios interceptor
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (submitted)
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
-        <motion.div
-          initial={{ scale: 0.9 }}
-          animate={{ scale: 1 }}
-          className="text-center p-10 bg-slate-800 rounded-2xl border border-cyan-500"
-        >
-          <CheckCircle className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold">Registration Successful!</h2>
-          <p className="mt-2 text-slate-400">
-            We will contact you soon with further details.
-          </p>
-          <button
-            onClick={() => setSubmitted(false)}
-            className="mt-6 text-cyan-400 hover:underline"
-          >
-            Register for another event
-          </button>
-        </motion.div>
-      </div>
-    );
-
   return (
-    <div className="min-h-screen bg-slate-900 py-12 px-6 text-white">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="max-w-2xl mx-auto bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700"
-      >
-        <h2 className="text-3xl font-bold mb-6 text-cyan-400">
-          Event Registration
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Full Name"
-            required
-            className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg"
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
-
-          <input
-            type="tel"
-            placeholder="Phone Number"
-            required
-            className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white"
-            onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
-            }
-          />
-
-          <input
-            type="email"
-            placeholder="Email Address"
-            required
-            className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg"
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-          />
-
-          <select
-            required
-            className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-slate-400"
-            onChange={(e) =>
-              setFormData({ ...formData, event: e.target.value })
-            }
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center py-20 px-6">
+      <AnimatePresence mode="wait">
+        {!success ? (
+          <motion.div 
+            key="form"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, x: 100 }}
+            className="w-full max-w-xl bg-slate-800/50 border border-slate-700 p-10 rounded-[2.5rem] backdrop-blur-xl"
           >
-            <option value="">Select Event</option>
-            {events.map((ev) => (
-              <option key={ev.id} value={ev.id}>
-                {ev.title}
-              </option>
-            ))}
-          </select>
+            <h2 className="text-4xl font-black text-white mb-2">Claim Your <span className="text-cyan-400">Seat.</span></h2>
+            <p className="text-slate-400 mb-10">Select your battleground and join the competition.</p>
 
-          <textarea
-            placeholder="College/Department"
-            className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg"
-            onChange={(e) =>
-              setFormData({ ...formData, college: e.target.value })
-            }
-          />
-
-          <button
-            type="submit"
-            className="w-full bg-cyan-600 hover:bg-cyan-500 py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <Input label="Full Name" type="text" placeholder="John Doe" required onChange={v => setFormData({...formData, name: v})} />
+              <Input label="Email" type="email" placeholder="john@student.com" required onChange={v => setFormData({...formData, email: v})} />
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Phone" type="tel" placeholder="+91..." required onChange={v => setFormData({...formData, phone: v})} />
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Event</label>
+                  <select 
+                    required 
+                    className="w-full bg-slate-900 border border-slate-700 p-4 rounded-2xl text-white outline-none focus:border-cyan-400 transition-colors appearance-none"
+                    onChange={e => setFormData({...formData, event: e.target.value})}
+                  >
+                    <option value="">Choose Event</option>
+                    {events.map(ev => (
+                      <option key={ev.id} value={ev.id} disabled={new Date(ev.date) < new Date()}>
+                        {ev.title} {new Date(ev.date) < new Date() ? "(Closed)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <Input label="College" type="text" placeholder="Jamia Hamdard" required onChange={v => setFormData({...formData, college: v})} />
+              
+              <button disabled={loading} className="w-full py-5 bg-cyan-600 hover:bg-cyan-500 rounded-2xl font-black text-white flex items-center justify-center gap-3 transition-all disabled:opacity-50">
+                {loading ? "Processing..." : <><Send size={20} /> Secure Spot</>}
+              </button>
+            </form>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="success"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center bg-slate-800 p-16 rounded-[3rem] border border-cyan-500/30"
           >
-            <Send size={18} /> Submit Registration
-          </button>
-        </form>
-      </motion.div>
+            <div className="w-24 h-24 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-8 text-cyan-400">
+              <CheckCircle size={48} />
+            </div>
+            <h2 className="text-4xl font-black text-white mb-4">You're In!</h2>
+            <p className="text-slate-400 mb-10">A confirmation email has been dispatched to your inbox.</p>
+            <button onClick={() => setSuccess(false)} className="flex items-center gap-2 mx-auto text-cyan-400 font-bold hover:underline">
+              <ArrowLeft size={18} /> Back to Events
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
+
+const Input = ({ label, onChange, ...props }) => (
+  <div className="space-y-2">
+    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">{label}</label>
+    <input 
+      {...props}
+      onChange={e => onChange(e.target.value)}
+      className="w-full bg-slate-900 border border-slate-700 p-4 rounded-2xl text-white outline-none focus:border-cyan-400 transition-colors"
+    />
+  </div>
+);
 
 export default Register;
