@@ -9,33 +9,47 @@ import {
   Clock,
   ArrowLeft,
   Download,
+  AlertTriangle,
+  List,
 } from "lucide-react";
 
 const EventDetails = () => {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
+  const [qualifiers, setQualifiers] = useState([]);
 
   useEffect(() => {
     api.get(`events/${id}/`).then((res) => setEvent(res.data));
+    api
+      .get(`events/${id}/qualifiers/`)
+      .then((res) => setQualifiers(res.data))
+      .catch(() => {});
   }, [id]);
 
   if (!event)
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center text-cyan-400 animate-pulse">
-        Loading Event Protocol...
+        Loading...
       </div>
     );
 
+  // Filter qualifiers to only show those in the highest active round (approximate logic for "Current Round")
+  const maxRound =
+    qualifiers.length > 0
+      ? Math.max(...qualifiers.map((q) => q.current_round))
+      : 1;
+  const currentQualifiers = qualifiers.filter(
+    (q) => q.current_round === maxRound && maxRound > 1
+  );
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
-      {/* Hero Image Area */}
       <div className="relative h-[50vh] w-full overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/60 to-transparent z-10" />
         <img
           src={event.image || "https://via.placeholder.com/1200x600"}
           className="w-full h-full object-cover"
         />
-
         <div className="absolute bottom-0 left-0 w-full z-20 p-6 md:p-12 max-w-7xl mx-auto">
           <Link
             to="/fest"
@@ -58,7 +72,6 @@ const EventDetails = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-12 grid lg:grid-cols-3 gap-12">
-        {/* Main Content */}
         <div className="lg:col-span-2 space-y-12">
           <section>
             <h2 className="text-2xl font-bold mb-4 text-cyan-400">
@@ -69,7 +82,25 @@ const EventDetails = () => {
             </p>
           </section>
 
-          {/* Rounds Timeline */}
+          {currentQualifiers.length > 0 && (
+            <section className="bg-slate-800/30 p-6 rounded-3xl border border-slate-700">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-400">
+                <List size={20} /> Qualified for Round {maxRound}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {currentQualifiers.map((q, i) => (
+                  <div
+                    key={i}
+                    className="bg-slate-900 p-3 rounded-xl flex items-center justify-between border border-slate-800"
+                  >
+                    <span className="font-bold">{q.team_name || q.name}</span>
+                    <span className="text-xs text-slate-500">{q.college}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="bg-slate-800/50 p-8 rounded-4xl border border-slate-700">
             <h3 className="text-2xl font-bold mb-8 flex items-center gap-3">
               <Zap className="text-yellow-400" fill="currentColor" />{" "}
@@ -77,38 +108,27 @@ const EventDetails = () => {
             </h3>
             <div className="relative space-y-8 pl-4">
               <div className="absolute left-5.75 top-2 bottom-2 w-0.5 bg-slate-700" />
-              {event.rounds && event.rounds.length > 0 ? (
+              {event.rounds &&
                 event.rounds.map((round) => (
                   <div
                     key={round.id}
                     className="relative flex gap-6 items-start group"
                   >
-                    <div className="w-5 h-5 mt-1 rounded-full bg-slate-900 border-4 border-cyan-500 z-10 shadow-[0_0_15px_rgba(6,182,212,0.5)] group-hover:scale-125 transition-transform" />
+                    <div className="w-5 h-5 mt-1 rounded-full bg-slate-900 border-4 border-cyan-500 z-10" />
                     <div>
-                      <h4 className="font-bold text-xl text-white group-hover:text-cyan-400 transition-colors">
+                      <h4 className="font-bold text-xl text-white">
                         Round {round.round_number}
                       </h4>
                       <p className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">
                         {round.name}
                       </p>
-                      {round.selection_limit > 0 && (
-                        <p className="text-xs text-slate-500 bg-slate-800 inline-block px-2 py-1 rounded">
-                          Top {round.selection_limit} qualify
-                        </p>
-                      )}
                     </div>
                   </div>
-                ))
-              ) : (
-                <p className="text-slate-500 italic pl-8">
-                  Rounds configuration pending.
-                </p>
-              )}
+                ))}
             </div>
           </section>
         </div>
 
-        {/* Sidebar Info */}
         <div className="space-y-6">
           <div className="bg-slate-800 p-8 rounded-4xl border border-slate-700 space-y-6 sticky top-24">
             <div className="space-y-4">
@@ -128,26 +148,33 @@ const EventDetails = () => {
                 label="Format"
                 value={
                   event.is_team_event
-                    ? `Teams (${event.min_team_size}-${event.max_team_size} members)`
-                    : "Solo Participation"
+                    ? `Teams (${event.min_team_size}-${event.max_team_size})`
+                    : "Solo"
                 }
               />
+              {event.registration_deadline && (
+                <InfoRow
+                  icon={<AlertTriangle className="text-yellow-500" />}
+                  label="Deadline"
+                  value={new Date(event.registration_deadline).toDateString()}
+                />
+              )}
             </div>
 
             {event.pdf_resource && (
               <a
                 href={event.pdf_resource}
                 target="_blank"
-                className="block w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-2xl font-bold text-center text-white transition-all border border-slate-600 flex items-center justify-center gap-2"
+                className="block w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-2xl font-bold text-center text-white border border-slate-600 flex items-center justify-center gap-2"
               >
-                <Download size={18} /> Download Rulebook
+                <Download size={18} /> Rulebook
               </a>
             )}
 
             {event.is_registration_open ? (
               <Link
                 to="/register"
-                className="block w-full py-4 bg-cyan-600 hover:bg-cyan-500 rounded-2xl font-black text-center text-lg transition-all shadow-lg shadow-cyan-500/20 transform hover:scale-[1.02]"
+                className="block w-full py-4 bg-cyan-600 hover:bg-cyan-500 rounded-2xl font-black text-center text-lg shadow-lg shadow-cyan-500/20"
               >
                 Register Now
               </Link>

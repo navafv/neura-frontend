@@ -19,19 +19,20 @@ const Leaderboard = () => {
         await Promise.all(
           eventList.map(async (ev) => {
             try {
-              // Fetch winners for each event
+              // Only fetch if backend allows it (results_published=True)
+              // If not published, backend returns 403, catch block handles it silently.
               const res = await api.get(`events/${ev.id}/results/`);
               if (res.data && res.data.length > 0) {
                 newResults[ev.id] = res.data;
               }
             } catch {
-              // Ignore events with no results yet
+              // Silently ignore unpublished events
             }
           })
         );
         setResults(newResults);
       } catch {
-        console.error("Failed to load results");
+        console.error("Failed to load leaderboard");
       } finally {
         setLoading(false);
       }
@@ -82,7 +83,6 @@ const Leaderboard = () => {
                       </h3>
                       <Award className="text-cyan-500" size={20} />
                     </div>
-
                     <div className="p-4 space-y-3">
                       {results[ev.id].map((winner, idx) => (
                         <div
@@ -123,7 +123,6 @@ const Leaderboard = () => {
                   </motion.div>
                 )
             )}
-
             {Object.keys(results).length === 0 && (
               <div className="col-span-full text-center py-20 text-slate-500">
                 Results have not been announced yet. Stay tuned!
