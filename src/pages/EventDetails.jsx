@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/axios";
-import { Calendar, MapPin, Users, Zap, Clock, ArrowLeft } from "lucide-react";
+import {
+  Calendar,
+  MapPin,
+  Users,
+  Zap,
+  Clock,
+  ArrowLeft,
+  Download,
+} from "lucide-react";
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -68,11 +76,9 @@ const EventDetails = () => {
               Competition Rounds
             </h3>
             <div className="relative space-y-8 pl-4">
-              {/* Timeline Line */}
               <div className="absolute left-5.75 top-2 bottom-2 w-0.5 bg-slate-700" />
-
               {event.rounds && event.rounds.length > 0 ? (
-                event.rounds.map((round, index) => (
+                event.rounds.map((round) => (
                   <div
                     key={round.id}
                     className="relative flex gap-6 items-start group"
@@ -127,6 +133,16 @@ const EventDetails = () => {
                 }
               />
             </div>
+
+            {event.pdf_resource && (
+              <a
+                href={event.pdf_resource}
+                target="_blank"
+                className="block w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-2xl font-bold text-center text-white transition-all border border-slate-600 flex items-center justify-center gap-2"
+              >
+                <Download size={18} /> Download Rulebook
+              </a>
+            )}
 
             {event.is_registration_open ? (
               <Link

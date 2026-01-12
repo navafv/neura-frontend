@@ -3,7 +3,6 @@ import api from "../api/axios";
 import toast from "react-hot-toast";
 import {
   Calendar,
-  UserCheck,
   Image,
   MessageSquare,
   Zap,
@@ -14,8 +13,13 @@ import {
   Plus,
   Trash2,
   Edit3,
-  Save,
   X,
+  MapPin,
+  Users,
+  Download,
+  Share2,
+  CheckCircle,
+  Circle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -28,7 +32,7 @@ const AdminDashboard = () => {
   // --- DATA STATES ---
   const [events, setEvents] = useState([]);
   const [fests, setFests] = useState([]);
-  const [users, setUsers] = useState([]); // For assigning coordinators
+  const [users, setUsers] = useState([]);
   const [gallery, setGallery] = useState([]);
   const [feedback, setFeedback] = useState([]);
 
@@ -38,9 +42,16 @@ const AdminDashboard = () => {
   const [selectedRound, setSelectedRound] = useState(1);
   const [selectedParticipants, setSelectedParticipants] = useState([]);
 
+  // --- SUB-FORMS ---
+  const [showRoundForm, setShowRoundForm] = useState(false);
+  const [newRoundData, setNewRoundData] = useState({
+    name: "",
+    selection_limit: 10,
+  });
+
   // --- CRUD FORM STATES ---
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({}); // Generic form state for creates/edits
+  const [isEditing, setIsEditing] = useState(false); // 'event', 'fest', 'edit_event'
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     checkUserRole();
@@ -60,11 +71,9 @@ const AdminDashboard = () => {
   const loadDashboardData = async (isSuperUser) => {
     setLoading(true);
     try {
-      // 1. Fetch Events (Filtered by Backend based on role)
       const eventRes = await api.get("events/my_events/");
       setEvents(eventRes.data.results || eventRes.data);
 
-      // 2. Fetch Admin-Only Data
       if (isSuperUser) {
         const [userRes, festRes, galRes, feedRes] = await Promise.all([
           api.get("users/"),
@@ -85,39 +94,136 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- GENERIC CRUD HANDLERS ---
+  const loadEventStats = async (id) => {
+    try {
+      const res = await api.get(`events/${id}/dashboard_data/`);
+      setEventStats(res.data);
+    } catch {
+      toast.error("Access Denied to this event");
+    }
+  };
 
+  // --- GENERIC CRUD HANDLERS ---
   const handleDelete = async (endpoint, id, refreshFn) => {
     if (!window.confirm("Are you sure? This cannot be undone.")) return;
     try {
       await api.delete(`${endpoint}/${id}/`);
       toast.success("Deleted successfully");
-      refreshFn(); // Reload data
+      refreshFn();
     } catch {
       toast.error("Delete failed");
     }
   };
 
-  const handleCreate = async (endpoint, data, refreshFn) => {
+  const handleSaveEvent = async () => {
+    const formData = new FormData();
+    Object.keys(editForm).forEach((key) => {
+      if (editForm[key] !== null) {
+        formData.append(key, editForm[key]);
+      }
+    });
+
     try {
-      await api.post(`${endpoint}/`, data);
-      toast.success("Created successfully");
+      if (editForm.id) {
+        await api.patch(`events/${editForm.id}/`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast.success("Event Updated");
+      } else {
+        await api.post(`events/`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast.success("Event Created");
+      }
       setIsEditing(false);
-      refreshFn();
+      loadDashboardData(true);
     } catch {
-      toast.error("Creation failed");
+      toast.error("Save failed. Check fields.");
     }
   };
 
-  // --- EVENT SPECIFIC ACTIONS ---
-
-  const assignCoordinator = async (eventId, userId) => {
+  const handleCreateFest = async () => {
     try {
-      await api.patch(`events/${eventId}/`, { coordinator: userId });
-      toast.success("Coordinator Assigned");
+      await api.post("fests/", editForm);
+      toast.success("Fest Created");
+      setIsEditing(false);
       loadDashboardData(true);
     } catch {
-      toast.error("Assignment Failed");
+      toast.error("Failed");
+    }
+  };
+
+  // --- ROUND MANAGEMENT ---
+  const handleAddRound = async () => {
+    try {
+      await api.post("rounds/", {
+        event: selectedEventId,
+        round_number: (eventStats.rounds_config.length || 0) + 1,
+        ...newRoundData,
+      });
+      toast.success("Round Added");
+      setShowRoundForm(false);
+      loadEventStats(selectedEventId);
+    } catch {
+      toast.error("Failed to add round");
+    }
+  };
+
+  const handleDeleteRound = async (roundId) => {
+    if (!window.confirm("Delete this round?")) return;
+    try {
+      await api.delete(`rounds/${roundId}/`);
+      toast.success("Round Deleted");
+      loadEventStats(selectedEventId);
+    } catch {
+      toast.error("Delete failed");
+    }
+  };
+
+  // --- ACTIONS ---
+  const handlePublishResults = async () => {
+    const ev = events.find((e) => e.id === selectedEventId);
+    try {
+      await api.patch(`events/${selectedEventId}/`, {
+        results_published: !ev.results_published,
+      });
+      toast.success(
+        ev.results_published ? "Results Un-published" : "Results Published!"
+      );
+      loadDashboardData(true); // reload to get fresh event state
+    } catch {
+      toast.error("Action failed");
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await api.get(
+        `events/${selectedEventId}/export_registrations/`,
+        { responseType: "blob" }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `event_${selectedEventId}_registrations.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      toast.error("Export failed");
+    }
+  };
+
+  const toggleAttendance = async (pid) => {
+    try {
+      await api.patch(`participants/${pid}/toggle_attendance/`);
+      loadEventStats(selectedEventId);
+      toast.success("Attendance Updated");
+    } catch {
+      toast.error("Failed");
     }
   };
 
@@ -147,15 +253,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const loadEventStats = async (id) => {
-    try {
-      const res = await api.get(`events/${id}/dashboard_data/`);
-      setEventStats(res.data);
-    } catch {
-      toast.error("Access Denied to this event");
-    }
-  };
-
   const generateCertificates = async (id) => {
     const tid = toast.loading("Forging Certificates...");
     try {
@@ -165,8 +262,6 @@ const AdminDashboard = () => {
       toast.error("Failed to generate", { id: tid });
     }
   };
-
-  // --- RENDER HELPERS ---
 
   if (!user)
     return (
@@ -178,7 +273,6 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        {/* HEADER */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
           <div>
             <h1 className="text-3xl font-black flex items-center gap-2">
@@ -217,7 +311,6 @@ const AdminDashboard = () => {
               active={activeTab}
               set={setActiveTab}
             />
-
             {user.is_superuser && (
               <div className="pt-4 space-y-2 animate-in fade-in">
                 <p className="text-xs font-bold text-slate-500 px-4 mb-2 uppercase tracking-widest">
@@ -256,7 +349,6 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {/* --- EVENTS TAB --- */}
             {activeTab === "events" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
@@ -274,15 +366,16 @@ const AdminDashboard = () => {
                   )}
                 </div>
 
-                {/* CREATE EVENT FORM (Admin Only) */}
+                {/* EDIT FORM OMITTED FOR BREVITY, SAME AS BEFORE BUT WITH FILE INPUTS */}
                 {isEditing === "event" && (
                   <div className="bg-slate-900 p-6 rounded-2xl border border-cyan-500/50 mb-6 animate-in slide-in-from-top-2">
                     <h3 className="font-bold text-cyan-400 mb-4">
-                      Create New Event
+                      {editForm.id ? "Edit Event" : "Create New Event"}
                     </h3>
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <input
                         placeholder="Title"
+                        value={editForm.title || ""}
                         className="bg-slate-800 p-3 rounded-lg text-white"
                         onChange={(e) =>
                           setEditForm({ ...editForm, title: e.target.value })
@@ -290,22 +383,22 @@ const AdminDashboard = () => {
                       />
                       <input
                         type="datetime-local"
+                        value={editForm.date || ""}
                         className="bg-slate-800 p-3 rounded-lg text-white"
                         onChange={(e) =>
                           setEditForm({ ...editForm, date: e.target.value })
                         }
                       />
-                      <textarea
-                        placeholder="Description"
-                        className="col-span-2 bg-slate-800 p-3 rounded-lg text-white"
+                      <input
+                        placeholder="Location"
+                        value={editForm.location || ""}
+                        className="bg-slate-800 p-3 rounded-lg text-white"
                         onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            description: e.target.value,
-                          })
+                          setEditForm({ ...editForm, location: e.target.value })
                         }
                       />
                       <select
+                        value={editForm.fest || ""}
                         className="bg-slate-800 p-3 rounded-lg text-white"
                         onChange={(e) =>
                           setEditForm({ ...editForm, fest: e.target.value })
@@ -318,9 +411,47 @@ const AdminDashboard = () => {
                           </option>
                         ))}
                       </select>
+                      <textarea
+                        placeholder="Description"
+                        value={editForm.description || ""}
+                        className="col-span-1 md:col-span-2 bg-slate-800 p-3 rounded-lg text-white"
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            description: e.target.value,
+                          })
+                        }
+                      />
+                      <div className="flex gap-2 col-span-2">
+                        <label className="text-slate-400 text-sm">
+                          Cover Image:{" "}
+                          <input
+                            type="file"
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                image: e.target.files[0],
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="text-slate-400 text-sm">
+                          Rulebook:{" "}
+                          <input
+                            type="file"
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                pdf_resource: e.target.files[0],
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
                       <label className="flex items-center gap-2 text-slate-400">
                         <input
                           type="checkbox"
+                          checked={editForm.is_team_event || false}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
@@ -333,14 +464,10 @@ const AdminDashboard = () => {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() =>
-                          handleCreate("events", editForm, () =>
-                            loadDashboardData(true)
-                          )
-                        }
+                        onClick={handleSaveEvent}
                         className="bg-green-600 px-4 py-2 rounded-lg font-bold"
                       >
-                        Save Event
+                        Save
                       </button>
                       <button
                         onClick={() => setIsEditing(false)}
@@ -370,16 +497,35 @@ const AdminDashboard = () => {
                         {ev.title}
                       </button>
                       {user.is_superuser && (
-                        <button
-                          onClick={() =>
-                            handleDelete("events", ev.id, () =>
-                              loadDashboardData(true)
-                            )
-                          }
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={12} />
-                        </button>
+                        <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setEditForm({
+                                id: ev.id,
+                                title: ev.title,
+                                date: ev.date.slice(0, 16),
+                                description: ev.description,
+                                location: ev.location,
+                                fest: ev.fest,
+                                is_team_event: ev.is_team_event,
+                              });
+                              setIsEditing("event");
+                            }}
+                            className="bg-blue-500 text-white p-1 rounded-full"
+                          >
+                            <Edit3 size={12} />
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleDelete("events", ev.id, () =>
+                                loadDashboardData(true)
+                              )
+                            }
+                            className="bg-red-500 text-white p-1 rounded-full"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -388,72 +534,161 @@ const AdminDashboard = () => {
                 {/* Event Detail View */}
                 {selectedEventId && eventStats ? (
                   <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 animate-in slide-in-from-bottom-4">
-                    {/* Admin: Assign Coordinator */}
-                    {user.is_superuser && (
-                      <div className="mb-6 p-4 bg-slate-800/50 rounded-2xl flex flex-wrap items-center gap-4 border border-slate-700">
-                        <span className="text-sm font-bold text-slate-400 uppercase">
-                          Coordinator:
-                        </span>
-                        <div className="flex-1 text-white font-mono">
-                          {events.find((e) => e.id === selectedEventId)
-                            ?.coordinator_name || "Unassigned"}
-                        </div>
-                        <select
-                          className="bg-slate-900 border border-slate-600 rounded-lg p-2 text-sm text-white outline-none focus:border-cyan-500"
-                          onChange={(e) =>
-                            assignCoordinator(selectedEventId, e.target.value)
-                          }
-                        >
-                          <option value="">Assign User</option>
-                          {users.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.username}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Round & Controls */}
-                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                      <div className="flex gap-2">
-                        {[1, 2, 3, 4, 5].map((r) => (
-                          <button
-                            key={r}
-                            onClick={() => setSelectedRound(r)}
-                            className={`w-10 h-10 rounded-xl font-bold transition-all ${
-                              selectedRound === r
-                                ? "bg-cyan-500 text-slate-900 scale-110"
-                                : "bg-slate-800 text-slate-500 hover:bg-slate-700"
-                            }`}
-                          >
-                            {r}
-                          </button>
-                        ))}
+                    {/* TOP CONTROLS */}
+                    <div className="flex flex-wrap justify-between items-center mb-8 gap-4 pb-6 border-b border-slate-800">
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-1">
+                          Manage:{" "}
+                          {events.find((e) => e.id === selectedEventId)?.title}
+                        </h3>
+                        <p className="text-slate-400 text-sm">
+                          {eventStats.total_registrations} Registrations
+                        </p>
                       </div>
                       <div className="flex gap-3">
+                        <button
+                          onClick={handlePublishResults}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${
+                            events.find((e) => e.id === selectedEventId)
+                              ?.results_published
+                              ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                              : "bg-slate-800 text-slate-400 border-slate-700"
+                          }`}
+                        >
+                          <Share2 size={14} />{" "}
+                          {events.find((e) => e.id === selectedEventId)
+                            ?.results_published
+                            ? "Results Published"
+                            : "Publish Results"}
+                        </button>
+                        <button
+                          onClick={handleExport}
+                          className="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 hover:bg-slate-700 flex items-center gap-2"
+                        >
+                          <Download size={14} /> Export CSV
+                        </button>
                         <button
                           onClick={() => generateCertificates(selectedEventId)}
                           className="bg-purple-500/10 text-purple-400 px-4 py-2 rounded-xl text-xs font-bold border border-purple-500/20 hover:bg-purple-500 hover:text-white transition-all flex items-center gap-2"
                         >
                           <Zap size={14} /> Certificates
                         </button>
+                      </div>
+                    </div>
+
+                    {/* ROUND CONFIGURATION */}
+                    <div className="mb-8">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-sm font-bold text-slate-400 uppercase">
+                          Competition Rounds
+                        </h4>
                         <button
-                          onClick={handlePromote}
-                          className="bg-green-500 text-slate-900 px-5 py-2 rounded-xl text-xs font-bold hover:bg-green-400 transition-all flex items-center gap-2 shadow-lg shadow-green-500/20"
+                          onClick={() => setShowRoundForm(!showRoundForm)}
+                          className="text-cyan-400 text-xs font-bold flex items-center gap-1 hover:underline"
                         >
-                          Promote Selected <ChevronRight size={14} />
+                          <Plus size={14} />{" "}
+                          {showRoundForm ? "Cancel" : "Add Round"}
                         </button>
+                      </div>
+
+                      {/* Add Round Form */}
+                      {showRoundForm && (
+                        <div className="bg-slate-800 p-4 rounded-xl mb-4 flex gap-4 items-end">
+                          <div className="flex-1">
+                            <label className="text-xs text-slate-500">
+                              Round Name
+                            </label>
+                            <input
+                              placeholder="e.g. Final Round"
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-sm"
+                              onChange={(e) =>
+                                setNewRoundData({
+                                  ...newRoundData,
+                                  name: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div className="w-32">
+                            <label className="text-xs text-slate-500">
+                              Selection Limit
+                            </label>
+                            <input
+                              type="number"
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-sm"
+                              value={newRoundData.selection_limit}
+                              onChange={(e) =>
+                                setNewRoundData({
+                                  ...newRoundData,
+                                  selection_limit: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <button
+                            onClick={handleAddRound}
+                            className="bg-green-600 text-white p-2 rounded-lg"
+                          >
+                            <CheckCircle size={18} />
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {eventStats.rounds_config.map((r) => (
+                          <div
+                            key={r.id}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer ${
+                              selectedRound === r.round_number
+                                ? "bg-cyan-500/10 border-cyan-500 text-cyan-400"
+                                : "bg-slate-800 border-slate-700 text-slate-400"
+                            }`}
+                            onClick={() => setSelectedRound(r.round_number)}
+                          >
+                            <span className="font-bold">R{r.round_number}</span>
+                            <span className="text-xs opacity-70 truncate max-w-25">
+                              {r.name}
+                            </span>
+                            {user.is_superuser && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteRound(r.id);
+                                }}
+                                className="hover:text-red-400"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {eventStats.rounds_config.length === 0 && (
+                          <span className="text-slate-500 text-sm italic">
+                            No rounds configured.
+                          </span>
+                        )}
                       </div>
                     </div>
 
                     {/* Participants List */}
                     <div className="overflow-hidden rounded-2xl border border-slate-800">
+                      <div className="p-4 bg-slate-800 flex justify-between items-center">
+                        <h4 className="font-bold text-white">
+                          Participants in Round {selectedRound}
+                        </h4>
+                        <button
+                          onClick={handlePromote}
+                          className="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                        >
+                          Promote Selected
+                        </button>
+                      </div>
                       <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-800 text-slate-400 uppercase font-bold text-xs">
+                        <thead className="bg-slate-900 text-slate-400 uppercase font-bold text-xs">
                           <tr>
                             <th className="p-4 w-10"></th>
                             <th className="p-4">Participant</th>
+                            <th className="p-4">Attendance</th>
                             <th className="p-4">Status</th>
                             <th className="p-4">Rank</th>
                           </tr>
@@ -472,13 +707,13 @@ const AdminDashboard = () => {
                                     checked={selectedParticipants.includes(
                                       p.id
                                     )}
-                                    onChange={() => {
+                                    onChange={() =>
                                       setSelectedParticipants((prev) =>
                                         prev.includes(p.id)
                                           ? prev.filter((x) => x !== p.id)
                                           : [...prev, p.id]
-                                      );
-                                    }}
+                                      )
+                                    }
                                     className="w-4 h-4 rounded bg-slate-800 border-slate-600 checked:bg-cyan-500"
                                   />
                                 </td>
@@ -486,11 +721,26 @@ const AdminDashboard = () => {
                                   <div className="font-bold text-white">
                                     {p.team_name || p.name}
                                   </div>
-                                  {p.team_name && (
-                                    <div className="text-xs text-slate-500">
-                                      {p.name}
-                                    </div>
-                                  )}
+                                  <div className="text-xs text-slate-500">
+                                    {p.team_name ? p.name : p.college}
+                                  </div>
+                                </td>
+                                <td className="p-4">
+                                  <button
+                                    onClick={() => toggleAttendance(p.id)}
+                                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                                      p.attended
+                                        ? "bg-green-500/10 text-green-400"
+                                        : "bg-red-500/10 text-red-400"
+                                    }`}
+                                  >
+                                    {p.attended ? (
+                                      <CheckCircle size={12} />
+                                    ) : (
+                                      <Circle size={12} />
+                                    )}{" "}
+                                    {p.attended ? "Present" : "Absent"}
+                                  </button>
                                 </td>
                                 <td className="p-4">
                                   {p.is_winner ? (
@@ -539,7 +789,7 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {/* --- FESTS TAB (Admin Only) --- */}
+            {/* Fests Tab Content... (omitted as no changes needed here, relies on previous logic) */}
             {activeTab === "fests" && user.is_superuser && (
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -554,12 +804,11 @@ const AdminDashboard = () => {
                     + Add Fest
                   </button>
                 </div>
-
                 {isEditing === "fest" && (
                   <div className="bg-slate-900 p-6 rounded-2xl border border-cyan-500/50 mb-6">
                     <div className="flex gap-4 mb-4">
                       <input
-                        placeholder="Fest Name (e.g. TechNova)"
+                        placeholder="Fest Name"
                         className="bg-slate-800 p-3 rounded-lg text-white flex-1"
                         onChange={(e) =>
                           setEditForm({ ...editForm, name: e.target.value })
@@ -576,11 +825,7 @@ const AdminDashboard = () => {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() =>
-                          handleCreate("fests", editForm, () =>
-                            loadDashboardData(true)
-                          )
-                        }
+                        onClick={handleCreateFest}
                         className="bg-green-600 px-4 py-2 rounded-lg font-bold"
                       >
                         Save
@@ -594,7 +839,6 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 )}
-
                 <div className="grid gap-4">
                   {fests.map((f) => (
                     <div
@@ -634,11 +878,10 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {/* --- GALLERY TAB (Admin Only) --- */}
+            {/* Gallery and Feedback - existing logic works */}
             {activeTab === "gallery" && user.is_superuser && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Gallery Management</h2>
-                {/* Upload Section could go here */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {gallery.map((img) => (
                     <div
@@ -659,16 +902,11 @@ const AdminDashboard = () => {
                       >
                         <Trash2 size={16} />
                       </button>
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-xs truncate">
-                        {img.title}
-                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* --- FEEDBACK TAB (Admin Only) --- */}
             {activeTab === "feedback" && user.is_superuser && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">User Feedback</h2>
