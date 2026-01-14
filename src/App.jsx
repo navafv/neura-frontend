@@ -11,6 +11,7 @@ import About from "./pages/About";
 import Gallery from "./pages/Gallery";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
+import ParticipantDashboard from "./pages/ParticipantDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -31,8 +32,16 @@ function App() {
         <Route
           path="/admin-dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute adminOnly>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <ParticipantDashboard />
             </ProtectedRoute>
           }
         />
