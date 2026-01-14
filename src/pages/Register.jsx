@@ -8,13 +8,11 @@ import {
   QrCode,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { Link } from "react-router-dom";
 
 const Register = () => {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // Base fields
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -26,10 +24,8 @@ const Register = () => {
     transaction_id: "",
   });
 
-  // Dynamic fields
   const [customResponses, setCustomResponses] = useState({});
   const [paymentProof, setPaymentProof] = useState(null);
-
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -42,7 +38,7 @@ const Register = () => {
     const event = events.find((ev) => ev.id.toString() === eventId);
     setSelectedEvent(event);
     setFormData({ ...formData, event: eventId });
-    setCustomResponses({}); // Reset custom fields
+    setCustomResponses({});
   };
 
   const handleSubmit = async (e) => {
@@ -50,12 +46,13 @@ const Register = () => {
     setLoading(true);
 
     const data = new FormData();
-    Object.keys(formData).forEach((key) => data.append(key, formData[key]));
+    Object.keys(formData).forEach((key) => {
+      if (formData[key]) data.append(key, formData[key]);
+    });
 
-    // Append File
     if (paymentProof) data.append("payment_proof", paymentProof);
 
-    // Append Custom Responses as JSON
+    // Stringify JSON for backend parsing
     data.append("custom_responses", JSON.stringify(customResponses));
 
     try {
@@ -65,7 +62,10 @@ const Register = () => {
       setSuccess(true);
       toast.success("Registered Successfully!");
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || "Registration failed.";
+      const errorMsg =
+        err.response?.data?.detail ||
+        JSON.stringify(err.response?.data) ||
+        "Registration failed.";
       toast.error(errorMsg);
       console.error(err.response?.data);
     } finally {
@@ -128,7 +128,6 @@ const Register = () => {
 
           {selectedEvent && selectedEvent.is_registration_open && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              {/* Standard Fields */}
               <div className="grid md:grid-cols-2 gap-6">
                 <Input
                   label="Full Name"
@@ -156,7 +155,6 @@ const Register = () => {
                 />
               </div>
 
-              {/* Team Fields */}
               {selectedEvent.is_team_event && (
                 <div className="p-6 bg-slate-900 rounded-2xl border border-cyan-500/30 space-y-4">
                   <h3 className="text-cyan-400 font-bold uppercase text-sm">
@@ -186,7 +184,6 @@ const Register = () => {
                 </div>
               )}
 
-              {/* Custom Fields */}
               {selectedEvent.custom_fields &&
                 selectedEvent.custom_fields.length > 0 && (
                   <div className="p-6 bg-slate-900 rounded-2xl border border-slate-700 space-y-4">
@@ -213,7 +210,6 @@ const Register = () => {
                   </div>
                 )}
 
-              {/* Payment Section */}
               {selectedEvent.registration_fee > 0 && (
                 <div className="p-6 bg-slate-900 rounded-2xl border border-yellow-500/30 space-y-6">
                   <div className="flex items-center gap-4 border-b border-slate-800 pb-4">
@@ -229,7 +225,6 @@ const Register = () => {
                       </p>
                     </div>
                   </div>
-
                   {selectedEvent.payment_qr ? (
                     <img
                       src={selectedEvent.payment_qr}
@@ -241,7 +236,6 @@ const Register = () => {
                       QR Code not uploaded by admin
                     </div>
                   )}
-
                   <div className="grid md:grid-cols-2 gap-6">
                     <Input
                       label="Transaction ID / UTR"

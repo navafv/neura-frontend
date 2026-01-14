@@ -1,15 +1,17 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const ProtectedRoute = ({ children }) => {
-  // Check if the access token exists in local storage
-  const isAuthenticated = localStorage.getItem('access_token');
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { isAuthenticated, user } = useAuth(); // Assuming user object contains role info if needed
 
   if (!isAuthenticated) {
-    // If not logged in, send them to the login page
     return <Navigate to="/login" replace />;
   }
 
-  // If logged in, show the requested page (children)
+  if (adminOnly && !user?.is_superuser) {
+    return <Navigate to="/" replace />;
+  }
+
   return children;
 };
 
