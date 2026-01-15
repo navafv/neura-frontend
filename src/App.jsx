@@ -9,6 +9,7 @@ import Register from "./pages/Register";
 import Contact from "./pages/Contact";
 import About from "./pages/About";
 import Gallery from "./pages/Gallery";
+import Schedule from "./pages/Schedule";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import ParticipantDashboard from "./pages/ParticipantDashboard";
@@ -22,6 +23,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/fest" element={<Fest />} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/event/:id" element={<EventDetails />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/register" element={<Register />} />
