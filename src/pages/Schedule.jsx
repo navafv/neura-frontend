@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { motion } from "framer-motion";
-import { Clock, MapPin, CalendarDays } from "lucide-react";
+import { Clock, MapPin, CalendarDays, Filter } from "lucide-react";
 
 const Schedule = () => {
   const [schedules, setSchedules] = useState([]);
   const [fests, setFests] = useState([]);
   const [selectedFest, setSelectedFest] = useState(null);
+  const [selectedDay, setSelectedDay] = useState("All");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +24,6 @@ const Schedule = () => {
         setFests(festData);
         setSchedules(schData);
 
-        // Default to active fest
         const active = festData.find((f) => f.is_active);
         if (active) setSelectedFest(active.id);
       } catch (err) {
@@ -35,8 +35,20 @@ const Schedule = () => {
     fetchData();
   }, []);
 
+  // Extract unique dates for the filter
+  const uniqueDates = [
+    ...new Set(
+      schedules.map((item) => new Date(item.start_time).toDateString())
+    ),
+  ];
+
   const filteredSchedule = schedules
     .filter((item) => (selectedFest ? item.fest === selectedFest : true))
+    .filter(
+      (item) =>
+        selectedDay === "All" ||
+        new Date(item.start_time).toDateString() === selectedDay
+    )
     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
   return (
@@ -47,21 +59,55 @@ const Schedule = () => {
             Event <span className="text-cyan-400">Timeline</span>
           </h2>
 
-          {/* Fest Filter */}
-          <div className="flex justify-center gap-2 flex-wrap">
-            {fests.map((fest) => (
-              <button
-                key={fest.id}
-                onClick={() => setSelectedFest(fest.id)}
-                className={`px-6 py-2 rounded-full font-bold transition-all ${
-                  selectedFest === fest.id
-                    ? "bg-cyan-600 text-white"
-                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                }`}
-              >
-                {fest.name}
-              </button>
-            ))}
+          <div className="flex flex-col items-center gap-4">
+            {/* Fest Filter */}
+            <div className="flex justify-center gap-2 flex-wrap">
+              {fests.map((fest) => (
+                <button
+                  key={fest.id}
+                  onClick={() => setSelectedFest(fest.id)}
+                  className={`px-5 py-2 rounded-full font-bold text-sm transition-all border ${
+                    selectedFest === fest.id
+                      ? "bg-cyan-600 text-white border-cyan-600"
+                      : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+                  }`}
+                >
+                  {fest.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Date Filter (Only shows if multiple days exist) */}
+            {uniqueDates.length > 1 && (
+              <div className="flex bg-slate-800 p-1 rounded-xl">
+                <button
+                  onClick={() => setSelectedDay("All")}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    selectedDay === "All"
+                      ? "bg-slate-700 text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  All Days
+                </button>
+                {uniqueDates.map((date) => (
+                  <button
+                    key={date}
+                    onClick={() => setSelectedDay(date)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      selectedDay === date
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {new Date(date).toLocaleDateString(undefined, {
+                      weekday: "short",
+                      day: "numeric",
+                    })}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </header>
 
@@ -78,7 +124,6 @@ const Schedule = () => {
                 viewport={{ once: true }}
                 className="relative pl-8 md:pl-12"
               >
-                {/* Timeline Dot */}
                 <div className="absolute -left-2.25 top-0 w-4 h-4 bg-slate-900 border-4 border-cyan-500 rounded-full" />
 
                 <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 hover:border-cyan-500/30 transition-all group">
@@ -122,7 +167,7 @@ const Schedule = () => {
 
             {filteredSchedule.length === 0 && (
               <div className="pl-12 text-slate-500 italic">
-                No schedule events found for this fest.
+                No schedule events found.
               </div>
             )}
           </div>

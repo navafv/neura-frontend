@@ -69,7 +69,7 @@ const About = () => {
                 className="bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 text-center p-6"
               >
                 <img
-                  src={member.image || "https://via.placeholder.com/150"}
+                  src={member.image || `https://placehold.co/150?text=${member.name?.charAt(0).toUpperCase()}`}
                   alt={member.name}
                   className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-cyan-500/20"
                 />

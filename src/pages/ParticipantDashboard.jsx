@@ -1,13 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "../api/axios";
-import { motion } from "framer-motion";
-import { QrCode, Download, Clock, Zap, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  QrCode,
+  Download,
+  Clock,
+  CheckCircle,
+  X,
+  MapPin,
+  Calendar,
+  Share2,
+  Printer,
+} from "lucide-react";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 
 const ParticipantDashboard = () => {
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     api
@@ -90,7 +101,7 @@ const ParticipantDashboard = () => {
                     {reg.qr_code && (
                       <Button
                         variant="secondary"
-                        onClick={() => window.open(reg.qr_code, "_blank")}
+                        onClick={() => setSelectedTicket(reg)}
                       >
                         <QrCode size={18} />{" "}
                         <span className="hidden sm:inline">Ticket</span>
@@ -111,7 +122,145 @@ const ParticipantDashboard = () => {
           </motion.div>
         )}
       </div>
+
+      {/* TICKET MODAL */}
+      <TicketModal
+        isOpen={!!selectedTicket}
+        onClose={() => setSelectedTicket(null)}
+        ticket={selectedTicket}
+      />
     </div>
+  );
+};
+
+const TicketModal = ({ isOpen, onClose, ticket }) => {
+  const ticketRef = useRef(null);
+
+  const handlePrint = () => {
+    const printContent = ticketRef.current.innerHTML;
+    const originalContent = document.body.innerHTML;
+
+    // Simple print trick: replace body with ticket, print, restore.
+    // Ideally use a print-specific CSS class or library.
+    document.body.innerHTML = `
+      <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#fff;">
+        ${printContent}
+      </div>
+    `;
+    window.print();
+    document.body.innerHTML = originalContent;
+    window.location.reload(); // Reload to restore React state cleanly
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && ticket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-slate-900/90 backdrop-blur-md"
+          />
+          <motion.div
+            initial={{ scale: 0.9, y: 50, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: 50, opacity: 0 }}
+            className="relative z-10 w-full max-w-sm"
+          >
+            {/* TICKET DESIGN */}
+            <div
+              ref={ticketRef}
+              className="bg-white text-slate-900 rounded-4xl overflow-hidden shadow-2xl relative"
+            >
+              {/* Header Pattern */}
+              <div className="h-32 bg-slate-900 relative p-6 flex flex-col justify-between">
+                <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')]"></div>
+                <div className="flex justify-between items-start z-10">
+                  <span className="text-cyan-400 font-black tracking-widest text-lg">
+                    NEURA
+                  </span>
+                  <div className="px-2 py-1 bg-white/10 backdrop-blur rounded text-white text-[10px] font-bold uppercase border border-white/20">
+                    Official Entry
+                  </div>
+                </div>
+                <h2 className="text-white text-2xl font-bold z-10 leading-tight">
+                  {ticket.event_title}
+                </h2>
+              </div>
+
+              {/* Cutout Circles */}
+              <div className="relative h-4 bg-slate-900">
+                <div className="absolute -left-3 -top-3 w-6 h-6 bg-slate-900 rounded-full z-20"></div>
+                <div className="absolute -right-3 -top-3 w-6 h-6 bg-slate-900 rounded-full z-20"></div>
+                <div className="absolute top-0 left-0 right-0 h-4 bg-white rounded-t-4xl"></div>
+              </div>
+
+              {/* Content */}
+              <div className="px-8 pb-8 pt-2 text-center bg-white">
+                <div className="w-48 h-48 mx-auto mb-6 p-2 bg-white rounded-xl border-4 border-slate-900 shadow-xl">
+                  <img
+                    src={ticket.qr_code}
+                    alt="QR"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+
+                <h3 className="text-2xl font-black text-slate-900 mb-1 uppercase">
+                  {ticket.name}
+                </h3>
+                <p className="text-slate-500 font-medium text-sm mb-6">
+                  {ticket.college}
+                </p>
+
+                <div className="grid grid-cols-2 gap-4 text-left bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-slate-400">
+                      Team
+                    </span>
+                    <span className="font-bold text-slate-800 text-sm truncate block">
+                      {ticket.team_name || "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-slate-400">
+                      Reg ID
+                    </span>
+                    <span className="font-bold text-slate-800 text-sm">
+                      #{ticket.id.toString().padStart(4, "0")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-slate-100 p-4 border-t border-slate-200 text-center">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  Admit One • Non-Transferable
+                </p>
+              </div>
+            </div>
+
+            {/* ACTION BUTTONS (Not printed) */}
+            <div className="mt-6 flex gap-3 justify-center">
+              <Button
+                onClick={handlePrint}
+                className="bg-white text-slate-900 hover:bg-slate-200"
+              >
+                <Printer size={18} /> Print
+              </Button>
+              <button
+                onClick={onClose}
+                className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-800 text-white border border-slate-700 hover:bg-slate-700 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

@@ -6,9 +6,15 @@ import {
   CreditCard,
   UserCheck,
   UserX,
+  Download,
+  Award,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { QRScanner } from "./QRScanner";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 export const LiveEventPanel = ({
   event,
@@ -19,11 +25,14 @@ export const LiveEventPanel = ({
   onToggleAttendance,
   onRank,
   user,
+  onRefresh,
 }) => {
   const [selectedRound, setSelectedRound] = useState(1);
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [roundForm, setRoundForm] = useState(false);
   const [newRound, setNewRound] = useState({ name: "", limit: 10 });
+  const [viewAnalytics, setViewAnalytics] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const currentParticipants = stats.participants.filter(
     (p) => p.current_round === selectedRound
@@ -35,21 +44,95 @@ export const LiveEventPanel = ({
     );
   };
 
+  const handleExport = async () => {
+    try {
+      const response = await api.get(
+        `events/${event.id}/export_registrations/`,
+        {
+          responseType: "blob",
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${event.title}_registrations.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      toast.error("Export failed");
+    }
+  };
+
+  const handleGenerateCertificates = async () => {
+    if (
+      !confirm("Generate certificates for all attendees? This may take time.")
+    )
+      return;
+    setGenerating(true);
+    try {
+      const res = await api.post(`events/${event.id}/generate_certificates/`);
+      toast.success(res.data.detail);
+      onRefresh();
+    } catch {
+      toast.error("Generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Stats Header */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatBox
-          label="Total Registrations"
-          value={stats.total_registrations}
-        />
-        <StatBox label="Active Round" value={`R${selectedRound}`} />
-        <StatBox label="Qualified" value={currentParticipants.length} />
-        <StatBox
-          label="Revenue"
-          value={`₹${stats.total_registrations * event.registration_fee}`}
-        />
+      {/* Top Controls */}
+      <div className="flex flex-wrap gap-4 justify-between items-center bg-slate-800/50 p-4 rounded-3xl border border-slate-700">
+        <h3 className="font-bold text-white flex items-center gap-2">
+          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+          Live Control
+        </h3>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setViewAnalytics(!viewAnalytics)}
+            className="py-2 text-xs"
+          >
+            <BarChart3 size={16} /> Analytics
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            className="py-2 text-xs"
+          >
+            <Download size={16} /> CSV
+          </Button>
+          <Button
+            variant="primary"
+            isLoading={generating}
+            onClick={handleGenerateCertificates}
+            className="py-2 text-xs bg-yellow-600 hover:bg-yellow-500"
+          >
+            <Award size={16} /> Generate Certs
+          </Button>
+        </div>
       </div>
+
+      {/* QR Scanner */}
+      <QRScanner onScanSuccess={onRefresh} />
+
+      {/* Analytics Panel */}
+      {viewAnalytics && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in">
+          <StatBox label="Total" value={stats.total_registrations} />
+          <StatBox
+            label="Attended"
+            value={stats.participants.filter((p) => p.attended).length}
+          />
+          <StatBox
+            label="Revenue"
+            value={`₹${stats.total_registrations * event.registration_fee}`}
+          />
+          <StatBox label="Rounds" value={stats.rounds_config.length} />
+        </div>
+      )}
 
       {/* Round Tabs */}
       <div className="flex items-center gap-4 overflow-x-auto pb-2">
@@ -127,7 +210,9 @@ export const LiveEventPanel = ({
       {/* Participants Table */}
       <Card className="p-0 overflow-hidden border-slate-700">
         <div className="p-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-          <h3 className="font-bold text-white">Qualifier List</h3>
+          <h3 className="font-bold text-white">
+            Qualifier List (Round {selectedRound})
+          </h3>
           <div className="flex gap-2">
             <Button
               variant="primary"
@@ -146,7 +231,7 @@ export const LiveEventPanel = ({
                 <th className="p-4 w-10">Select</th>
                 <th className="p-4">Participant</th>
                 <th className="p-4">Status</th>
-                <th className="p-4">Actions</th>
+                <th className="p-4">Rank</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
@@ -216,6 +301,16 @@ export const LiveEventPanel = ({
                   </td>
                 </tr>
               ))}
+              {currentParticipants.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="p-8 text-center text-slate-500 italic"
+                  >
+                    No participants in this round.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

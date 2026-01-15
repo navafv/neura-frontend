@@ -1,16 +1,63 @@
-import { Edit3, Trash2, Plus, Download, Share2, Zap } from "lucide-react";
+import { useState } from "react";
+import { Edit3, Trash2, Plus, Zap } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
+import { Modal } from "../ui/Modal";
+import { EventForm } from "./EventForm";
+import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 export const EventsManager = ({
   events,
   selectedEventId,
   onSelectEvent,
-  onEdit,
-  onDelete,
-  onCreate,
   user,
 }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+
+  const handleCreate = () => {
+    setEditingEvent(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (event) => {
+    setEditingEvent(event);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this event?")) return;
+    try {
+      await api.delete(`events/${id}/`);
+      toast.success("Event deleted");
+      window.location.reload(); // Simple refresh to clear state
+    } catch {
+      toast.error("Delete failed");
+    }
+  };
+
+  const handleFormSubmit = async (formData) => {
+    try {
+      if (editingEvent) {
+        await api.patch(`events/${editingEvent.id}/`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast.success("Event updated");
+      } else {
+        await api.post("events/", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast.success("Event created");
+      }
+      setIsModalOpen(false);
+      window.location.reload();
+    } catch (err) {
+      toast.error("Operation failed");
+      console.error(err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -18,7 +65,7 @@ export const EventsManager = ({
           Event Control
         </h2>
         {user.is_superuser && (
-          <Button onClick={onCreate}>
+          <Button onClick={handleCreate}>
             <Plus size={18} /> Create Event
           </Button>
         )}
@@ -57,7 +104,7 @@ export const EventsManager = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEdit(ev);
+                    handleEdit(ev);
                   }}
                   className="p-2 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500 hover:text-white transition-colors"
                 >
@@ -66,7 +113,7 @@ export const EventsManager = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete(ev.id);
+                    handleDelete(ev.id);
                   }}
                   className="p-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-colors"
                 >
@@ -77,6 +124,18 @@ export const EventsManager = ({
           </div>
         ))}
       </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingEvent ? "Edit Event" : "Create Event"}
+      >
+        <EventForm
+          event={editingEvent}
+          onSubmit={handleFormSubmit}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
     </div>
   );
 };

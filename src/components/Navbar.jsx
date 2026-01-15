@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
   const navigate = useNavigate();
 
   const navLinks = [
@@ -25,6 +25,11 @@ const Navbar = () => {
     toast.success("Logged out successfully");
     navigate("/login");
   };
+
+  const dashboardLink =
+    user?.is_superuser || user?.is_coordinator
+      ? "/admin-dashboard"
+      : "/dashboard";
 
   return (
     <nav className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
@@ -51,7 +56,7 @@ const Navbar = () => {
             {isAuthenticated ? (
               <div className="flex items-center gap-4 border-l border-slate-700 pl-6">
                 <Link
-                  to="/admin-dashboard"
+                  to={dashboardLink}
                   className="text-sm font-bold text-cyan-400"
                 >
                   Dashboard
@@ -64,12 +69,20 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <Link
-                to="/register"
-                className="bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-2 rounded-full text-sm font-bold transition-all transform hover:scale-105"
-              >
-                Join Fest
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/login"
+                  className="text-slate-300 hover:text-cyan-400 font-medium transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-2 rounded-full text-sm font-bold transition-all transform hover:scale-105"
+                >
+                  Join Fest
+                </Link>
+              </div>
             )}
           </div>
 
@@ -102,10 +115,43 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-            {!isAuthenticated && (
-              <Link to="/login" className="block text-cyan-400 font-bold">
-                Admin Login
-              </Link>
+
+            {!isAuthenticated ? (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="block text-slate-300 text-lg"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setIsOpen(false)}
+                  className="block text-cyan-400 font-bold text-lg"
+                >
+                  Join Fest
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to={dashboardLink}
+                  onClick={() => setIsOpen(false)}
+                  className="block text-cyan-400 font-bold text-lg"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsOpen(false);
+                  }}
+                  className="block text-red-400 font-bold text-lg w-full text-left"
+                >
+                  Logout
+                </button>
+              </>
             )}
           </motion.div>
         )}

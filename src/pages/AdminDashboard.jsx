@@ -6,6 +6,9 @@ import { EventsManager } from "../components/admin/EventsManager";
 import { LiveEventPanel } from "../components/admin/LiveEventPanel";
 import { TeamManager } from "../components/admin/TeamManager";
 import { ScheduleManager } from "../components/admin/ScheduleManager";
+import { FestsManager } from "../components/admin/FestsManager";
+import { GalleryManager } from "../components/admin/GalleryManager";
+import { FeedbackViewer } from "../components/admin/FeedbackViewer";
 import { Card } from "../components/ui/Card";
 import {
   Calendar,
@@ -38,7 +41,6 @@ const AdminDashboard = () => {
   const [eventStats, setEventStats] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // 1. Wait for Auth to be ready
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
@@ -49,15 +51,12 @@ const AdminDashboard = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // 2. Fetch Data Based on Role
   const loadDashboardData = async () => {
     setDataLoading(true);
     try {
-      // EVERYONE gets their events
       const eventRes = await api.get("events/my_events/");
       setEvents(eventRes.data.results || eventRes.data);
 
-      // ONLY Superusers get the rest
       if (user?.is_superuser) {
         const [festRes, galRes, feedRes, teamRes, schRes] = await Promise.all([
           api.get("fests/"),
@@ -87,6 +86,64 @@ const AdminDashboard = () => {
       setSelectedEventId(id);
     } catch {
       toast.error("Access denied to this event");
+    }
+  };
+
+  // Event Panel Handlers
+  const handleAddRound = async (roundData) => {
+    try {
+      // Find existing rounds count
+      const currentRounds = eventStats.rounds_config.length;
+      await api.post("rounds/", {
+        ...roundData,
+        event: selectedEventId,
+        round_number: currentRounds + 1,
+      });
+      toast.success("Round Added");
+      loadEventStats(selectedEventId);
+    } catch {
+      toast.error("Failed to add round");
+    }
+  };
+
+  const handleDeleteRound = async (id) => {
+    if (!confirm("Delete round?")) return;
+    try {
+      await api.delete(`rounds/${id}/`);
+      toast.success("Round Deleted");
+      loadEventStats(selectedEventId);
+    } catch {
+      toast.error("Failed");
+    }
+  };
+
+  const handlePromote = async (ids, nextRound) => {
+    if (ids.length === 0) return toast.error("Select participants first");
+    try {
+      await api.post("participants/promote/", { ids, next_round: nextRound });
+      toast.success("Promoted!");
+      loadEventStats(selectedEventId);
+    } catch {
+      toast.error("Failed");
+    }
+  };
+
+  const handleToggleAttendance = async (id) => {
+    try {
+      await api.patch(`participants/${id}/toggle_attendance/`);
+      loadEventStats(selectedEventId);
+    } catch {
+      toast.error("Failed");
+    }
+  };
+
+  const handleRank = async (id, rank) => {
+    try {
+      await api.patch(`participants/${id}/assign_rank/`, { rank });
+      toast.success("Rank Assigned");
+      loadEventStats(selectedEventId);
+    } catch {
+      toast.error("Failed");
     }
   };
 
@@ -142,8 +199,6 @@ const AdminDashboard = () => {
               active={activeTab === "events"}
               onClick={() => setActiveTab("events")}
             />
-
-            {/* Conditional Tabs for Superuser Only */}
             {user?.is_superuser && (
               <>
                 <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-600 uppercase tracking-widest">
@@ -186,7 +241,6 @@ const AdminDashboard = () => {
 
         {/* MAIN CONTENT AREA */}
         <main className="lg:col-span-9 space-y-8">
-          {/* EVENTS TAB */}
           {activeTab === "events" && (
             <>
               <EventsManager
@@ -195,7 +249,6 @@ const AdminDashboard = () => {
                 onSelectEvent={loadEventStats}
                 user={user}
               />
-
               {selectedEventId && eventStats ? (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
                   <div className="h-px bg-slate-800 my-8" />
@@ -212,7 +265,12 @@ const AdminDashboard = () => {
                     event={events.find((e) => e.id === selectedEventId)}
                     stats={eventStats}
                     user={user}
-                    onRefresh={() => loadEventStats(selectedEventId)} // Pass refresh handler
+                    onAddRound={handleAddRound}
+                    onDeleteRound={handleDeleteRound}
+                    onPromote={handlePromote}
+                    onToggleAttendance={handleToggleAttendance}
+                    onRank={handleRank}
+                    onRefresh={() => loadEventStats(selectedEventId)}
                   />
                 </div>
               ) : (
@@ -224,45 +282,36 @@ const AdminDashboard = () => {
             </>
           )}
 
-          {/* SUPERUSER TABS */}
           {user?.is_superuser && (
             <>
               {activeTab === "team" && (
-                <TeamManager
-                  team={team}
-                  onRefresh={() => loadDashboardData()}
-                />
+                <TeamManager team={team} onRefresh={loadDashboardData} />
               )}
               {activeTab === "schedule" && (
                 <ScheduleManager
                   schedules={schedules}
                   fests={fests}
-                  onRefresh={() => loadDashboardData()}
+                  onRefresh={loadDashboardData}
                 />
               )}
-
               {activeTab === "fests" && (
-                <div className="p-12 text-center text-slate-500 bg-slate-800/50 rounded-3xl border border-slate-800">
-                  <Crown className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  Fest Manager Component (To be implemented)
-                </div>
+                <FestsManager fests={fests} onRefresh={loadDashboardData} />
               )}
               {activeTab === "gallery" && (
-                <div className="p-12 text-center text-slate-500 bg-slate-800/50 rounded-3xl border border-slate-800">
-                  <Image className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  Gallery Manager Component (To be implemented)
-                </div>
+                <GalleryManager
+                  gallery={gallery}
+                  onRefresh={loadDashboardData}
+                />
               )}
               {activeTab === "feedback" && (
-                <div className="p-12 text-center text-slate-500 bg-slate-800/50 rounded-3xl border border-slate-800">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  Feedback Viewer Component (To be implemented)
-                </div>
+                <FeedbackViewer
+                  feedback={feedback}
+                  onRefresh={loadDashboardData}
+                />
               )}
             </>
           )}
 
-          {/* ACCESS DENIED FALLBACK */}
           {!user?.is_superuser && activeTab !== "events" && (
             <div className="flex flex-col items-center justify-center h-64 bg-red-900/10 border border-red-900/30 rounded-3xl text-red-400">
               <AlertCircle className="w-10 h-10 mb-2" />
@@ -278,7 +327,6 @@ const AdminDashboard = () => {
   );
 };
 
-// Sub-component for Sidebar Buttons
 const NavButton = ({ icon, label, active, onClick }) => (
   <button
     onClick={onClick}
