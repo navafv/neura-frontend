@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Edit3, Trash2, Plus, Zap } from "lucide-react";
+import { Edit3, Trash2, Plus, Zap, UserPlus } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
@@ -15,6 +15,7 @@ export const EventsManager = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [newCredentials, setNewCredentials] = useState(null);
 
   const handleCreate = () => {
     setEditingEvent(null);
@@ -31,7 +32,7 @@ export const EventsManager = ({
     try {
       await api.delete(`events/${id}/`);
       toast.success("Event deleted");
-      window.location.reload(); // Simple refresh to clear state
+      window.location.reload();
     } catch {
       toast.error("Delete failed");
     }
@@ -45,10 +46,16 @@ export const EventsManager = ({
         });
         toast.success("Event updated");
       } else {
-        await api.post("events/", formData, {
+        const res = await api.post("events/", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         toast.success("Event created");
+
+        // Check for auto-generated credentials
+        if (res.data.auto_created_user) {
+          setNewCredentials(res.data.auto_created_user);
+          return; // Don't close modal immediately, show creds first
+        }
       }
       setIsModalOpen(false);
       window.location.reload();
@@ -127,14 +134,57 @@ export const EventsManager = ({
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingEvent ? "Edit Event" : "Create Event"}
+        onClose={() => {
+          setIsModalOpen(false);
+          setNewCredentials(null);
+        }}
+        title={
+          newCredentials
+            ? "User Created"
+            : editingEvent
+            ? "Edit Event"
+            : "Create Event"
+        }
       >
-        <EventForm
-          event={editingEvent}
-          onSubmit={handleFormSubmit}
-          onCancel={() => setIsModalOpen(false)}
-        />
+        {newCredentials ? (
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
+              <UserPlus size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-white">
+              Coordinator Account Generated
+            </h3>
+            <p className="text-slate-400 text-sm">
+              Please save these details. They will not be shown again.
+            </p>
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 text-left space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500 text-sm">Username:</span>
+                <span className="text-white font-mono font-bold select-all">
+                  {newCredentials.username}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 text-sm">Password:</span>
+                <span className="text-white font-mono font-bold select-all">
+                  {newCredentials.password}
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={() => window.location.reload()}
+              className="w-full mt-4"
+            >
+              Done
+            </Button>
+          </div>
+        ) : (
+          <EventForm
+            event={editingEvent}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setIsModalOpen(false)}
+          />
+        )}
       </Modal>
     </div>
   );

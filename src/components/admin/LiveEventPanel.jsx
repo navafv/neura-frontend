@@ -81,6 +81,13 @@ export const LiveEventPanel = ({
     }
   };
 
+  // Helper to fix media URLs (if they are missing domain)
+  const getFullUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    return `http://localhost:8000${url}`;
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Top Controls */}
@@ -257,7 +264,7 @@ export const LiveEventPanel = ({
                     </div>
                     {p.payment_proof && (
                       <a
-                        href={p.payment_proof}
+                        href={getFullUrl(p.payment_proof)}
                         target="_blank"
                         className="text-cyan-400 text-xs flex items-center gap-1 mt-1 hover:underline"
                       >

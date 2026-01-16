@@ -1,136 +1,188 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import { motion } from "framer-motion";
-import { Trophy, Medal, Award } from "lucide-react";
+import { Trophy, Medal, Crown } from "lucide-react";
 
 const Leaderboard = () => {
   const [events, setEvents] = useState([]);
-  const [results, setResults] = useState({});
+  const [collegeData, setCollegeData] = useState([]);
+  const [results, setResults] = useState({}); // { eventId: [winners] }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const eventsRes = await api.get("events/");
-        const eventList = eventsRes.data.results || eventsRes.data;
-        setEvents(eventList);
+        const [eventsRes, collegeRes] = await Promise.all([
+          api.get("events/"),
+          api.get("events/college_leaderboard/"),
+        ]);
 
-        const newResults = {};
+        const allEvents = eventsRes.data.results || eventsRes.data;
+        setEvents(allEvents);
+        setCollegeData(collegeRes.data);
+
+        // Fetch results for published events
+        const resultsMap = {};
         await Promise.all(
-          eventList.map(async (ev) => {
-            try {
-              // Only fetch if backend allows it (results_published=True)
-              // If not published, backend returns 403, catch block handles it silently.
-              const res = await api.get(`events/${ev.id}/results/`);
-              if (res.data && res.data.length > 0) {
-                newResults[ev.id] = res.data;
+          allEvents.map(async (event) => {
+            // Only attempt to fetch if flag is true to avoid 403
+            if (event.results_published) {
+              try {
+                const res = await api.get(`events/${event.id}/results/`);
+                resultsMap[event.id] = res.data;
+              } catch {
+                // Silently ignore 403s or other errors for individual events
+                // This prevents console spam for unpublished events if logic slips
               }
-            } catch {
-              // Silently ignore unpublished events
             }
           })
         );
-        setResults(newResults);
-      } catch {
-        console.error("Failed to load leaderboard");
+        setResults(resultsMap);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-900 py-20 px-4">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="max-w-6xl mx-auto"
-      >
-        <div className="text-center mb-16">
-          <Trophy className="mx-auto text-yellow-500 w-20 h-20 mb-6 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
-          <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight">
-            Hall of{" "}
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-yellow-400 to-orange-500">
-              Fame
-            </span>
-          </h2>
-          <p className="text-slate-400 mt-4 text-lg">
-            Celebrating the champions of Neura IT Fest.
-          </p>
-        </div>
+    <div className="min-h-screen bg-slate-900 py-20 px-6">
+      <div className="max-w-7xl mx-auto space-y-16">
+        <header className="text-center">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h2 className="text-5xl font-black text-white mb-4">
+              Hall of <span className="text-cyan-400">Fame</span>
+            </h2>
+            <p className="text-slate-400">
+              Celebrating excellence at Neura Fest
+            </p>
+          </motion.div>
+        </header>
 
-        {loading ? (
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
+        {/* COLLEGE STANDINGS */}
+        <section>
+          <div className="flex items-center gap-3 mb-6">
+            <Crown className="text-yellow-500 w-8 h-8" />
+            <h3 className="text-3xl font-bold text-white">Top Colleges</h3>
           </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-8">
-            {events.map(
-              (ev) =>
-                results[ev.id] && (
-                  <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    whileInView={{ y: 0, opacity: 1 }}
-                    viewport={{ once: true }}
-                    key={ev.id}
-                    className="bg-slate-800/50 border border-slate-700 rounded-3xl overflow-hidden backdrop-blur-sm hover:border-cyan-500/30 transition-all"
-                  >
-                    <div className="bg-slate-800 p-6 border-b border-slate-700 flex justify-between items-center">
-                      <h3 className="text-xl font-bold text-white truncate">
-                        {ev.title}
-                      </h3>
-                      <Award className="text-cyan-500" size={20} />
+          <div className="grid gap-4 md:grid-cols-3">
+            {collegeData.slice(0, 3).map((col, idx) => (
+              <motion.div
+                key={col.college}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`p-6 rounded-2xl border ${
+                  idx === 0
+                    ? "bg-yellow-500/10 border-yellow-500/50"
+                    : idx === 1
+                    ? "bg-slate-800 border-slate-600"
+                    : "bg-slate-800/50 border-slate-700"
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-4xl font-black text-white mb-2">
+                      #{idx + 1}
                     </div>
-                    <div className="p-4 space-y-3">
-                      {results[ev.id].map((winner, idx) => (
-                        <div
-                          key={winner.id}
-                          className={`flex items-center gap-4 p-4 rounded-xl ${
-                            idx === 0
-                              ? "bg-linear-to-r from-yellow-500/10 to-transparent border border-yellow-500/20"
-                              : "bg-slate-900/50"
-                          }`}
-                        >
-                          <div
-                            className={`text-2xl font-black w-8 ${
-                              idx === 0
-                                ? "text-yellow-400"
-                                : idx === 1
-                                ? "text-slate-300"
-                                : "text-orange-500"
-                            }`}
-                          >
-                            #{winner.rank}
-                          </div>
-                          <div>
-                            <p className="font-bold text-lg text-white">
-                              {winner.team_name || winner.name}
-                            </p>
-                            <p className="text-slate-500 text-xs">
-                              {winner.team_name
-                                ? `${winner.name} (Team Lead)`
-                                : winner.college}
-                            </p>
-                          </div>
-                          {idx === 0 && (
-                            <Medal className="ml-auto text-yellow-500" />
+                    <div className="font-bold text-lg text-slate-200">
+                      {col.college}
+                    </div>
+                  </div>
+                  <div className="bg-slate-900 px-4 py-2 rounded-xl text-cyan-400 font-mono font-bold">
+                    {col.points} PTS
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* EVENT WINNERS */}
+        <div className="grid gap-12">
+          {events.map((event) => {
+            const winners = results[event.id];
+            if (!winners || winners.length === 0) return null;
+
+            return (
+              <section
+                key={event.id}
+                className="animate-in fade-in slide-in-from-bottom-8"
+              >
+                <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
+                  <Trophy className="text-cyan-500" />
+                  <h3 className="text-2xl font-bold text-white">
+                    {event.title}
+                  </h3>
+                  {event.is_team_event && (
+                    <span className="bg-slate-800 text-xs px-2 py-1 rounded text-slate-400">
+                      Team Event
+                    </span>
+                  )}
+                </div>
+
+                <div className="bg-slate-800 rounded-2xl overflow-hidden border border-slate-700">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-900 text-slate-400 uppercase text-xs">
+                      <tr>
+                        <th className="p-4 w-16">Rank</th>
+                        <th className="p-4">
+                          {event.is_team_event ? "Team Name" : "Participant"}
+                        </th>
+                        {event.is_team_event && (
+                          <th className="p-4">Members</th>
+                        )}
+                        <th className="p-4">College</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700 text-slate-300">
+                      {winners.map((w) => (
+                        <tr key={w.id} className="hover:bg-slate-700/30">
+                          <td className="p-4 font-black text-xl">
+                            {w.rank === 1 && (
+                              <Medal
+                                className="inline text-yellow-400 mr-2"
+                                size={20}
+                              />
+                            )}
+                            {w.rank === 2 && (
+                              <Medal
+                                className="inline text-gray-300 mr-2"
+                                size={20}
+                              />
+                            )}
+                            {w.rank === 3 && (
+                              <Medal
+                                className="inline text-orange-400 mr-2"
+                                size={20}
+                              />
+                            )}
+                            {w.rank}
+                          </td>
+                          <td className="p-4 font-bold text-white">
+                            {event.is_team_event ? w.team_name : w.name}
+                          </td>
+                          {event.is_team_event && (
+                            <td className="p-4 text-sm text-slate-400">
+                              {w.team_members}
+                            </td>
                           )}
-                        </div>
+                          <td className="p-4">{w.college}</td>
+                        </tr>
                       ))}
-                    </div>
-                  </motion.div>
-                )
-            )}
-            {Object.keys(results).length === 0 && (
-              <div className="col-span-full text-center py-20 text-slate-500">
-                Results have not been announced yet. Stay tuned!
-              </div>
-            )}
-          </div>
-        )}
-      </motion.div>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

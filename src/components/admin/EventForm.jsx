@@ -20,8 +20,8 @@ export const EventForm = ({ event, onSubmit, onCancel }) => {
     is_team_event: false,
     custom_fields: [],
     fest: "",
-    coordinator: "",
-    // Files (handled separately)
+    coordinator: "", // Can be empty to auto-generate
+    // Files
     image: null,
     payment_qr: null,
     pdf_resource: null,
@@ -41,7 +41,7 @@ export const EventForm = ({ event, onSubmit, onCancel }) => {
         registration_deadline: event.registration_deadline
           ? new Date(event.registration_deadline).toISOString().slice(0, 16)
           : "",
-        image: null, // Clear file inputs on edit
+        image: null,
         payment_qr: null,
         pdf_resource: null,
       });
@@ -71,7 +71,7 @@ export const EventForm = ({ event, onSubmit, onCancel }) => {
     Object.keys(formData).forEach((key) => {
       if (key === "custom_fields") {
         data.append(key, JSON.stringify(formData[key]));
-      } else if (formData[key] !== null) {
+      } else if (formData[key] !== null && formData[key] !== "") {
         data.append(key, formData[key]);
       }
     });
@@ -138,19 +138,41 @@ export const EventForm = ({ event, onSubmit, onCancel }) => {
       </div>
 
       <div className="p-4 bg-slate-900 rounded-xl border border-slate-700 space-y-4">
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="is_team"
-            className="w-5 h-5 accent-cyan-500"
-            checked={formData.is_team_event}
-            onChange={(e) =>
-              setFormData({ ...formData, is_team_event: e.target.checked })
-            }
-          />
-          <label htmlFor="is_team" className="font-bold text-white">
-            Team Event?
-          </label>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="is_team"
+              className="w-5 h-5 accent-cyan-500"
+              checked={formData.is_team_event}
+              onChange={(e) =>
+                setFormData({ ...formData, is_team_event: e.target.checked })
+              }
+            />
+            <label htmlFor="is_team" className="font-bold text-white">
+              Team Event?
+            </label>
+          </div>
+          {/* Coordinator Selection (Optional) */}
+          <div className="flex-1 max-w-xs ml-auto">
+            <label className="text-xs text-slate-500 uppercase font-bold ml-1">
+              Coordinator (Optional)
+            </label>
+            <select
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-sm"
+              value={formData.coordinator || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, coordinator: e.target.value })
+              }
+            >
+              <option value="">Auto-generate New User</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.username}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {formData.is_team_event && (

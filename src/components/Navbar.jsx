@@ -14,6 +14,7 @@ const Navbar = () => {
     { name: "Home", path: "/" },
     { name: "IT Fest", path: "/fest" },
     { name: "Schedule", path: "/schedule" },
+    { name: "Qualifiers", path: "/qualifiers" },
     { name: "Leaderboard", path: "/leaderboard" },
     { name: "Gallery", path: "/gallery" },
     { name: "About", path: "/about" },
@@ -42,17 +43,17 @@ const Navbar = () => {
             </span>
           </Link>
 
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden lg:flex items-center space-x-6">
+            {" "}
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.path}
-                className="text-slate-300 hover:text-cyan-400 font-medium transition-colors"
+                className="text-slate-300 hover:text-cyan-400 font-medium transition-colors text-sm"
               >
                 {link.name}
               </Link>
             ))}
-
             {isAuthenticated ? (
               <div className="flex items-center gap-4 border-l border-slate-700 pl-6">
                 <Link
@@ -72,7 +73,7 @@ const Navbar = () => {
               <div className="flex items-center gap-4">
                 <Link
                   to="/login"
-                  className="text-slate-300 hover:text-cyan-400 font-medium transition-colors"
+                  className="text-slate-300 hover:text-cyan-400 font-medium transition-colors text-sm"
                 >
                   Login
                 </Link>
@@ -86,7 +87,7 @@ const Navbar = () => {
             )}
           </div>
 
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-slate-300"
@@ -103,7 +104,7 @@ const Navbar = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="md:hidden bg-slate-800 border-b border-slate-700 p-4 space-y-4"
+            className="lg:hidden bg-slate-800 border-b border-slate-700 p-4 space-y-4"
           >
             {navLinks.map((link) => (
               <Link
